@@ -1,0 +1,28 @@
+<?=$this->doctype()?>
+
+<html>
+
+<head>
+	<?=$this->headTitle("ATP Admin")->setSeparator(" | ")?>
+	<?=$this->headLink()
+		->appendStylesheet($this->baseThemedUrl("/css/atp/admin.css"))
+		->appendStylesheet($this->baseThemedUrl("/css/atp/smoothness/jquery-ui-1.9.0.custom.min.css"))
+	?>
+	<?=$this->headScript()
+		->prependFile($this->baseThemedUrl("/js/atp/admin.js"))
+		->prependFile($this->baseThemedUrl("/js/atp/tiny_mce/jquery.tinymce.js"))
+		->prependFile($this->baseThemedUrl("/js/atp/tiny_mce/tiny_mce.js"))
+		->prependFile($this->baseThemedUrl("/js/atp/jquery-ui-1.9.0.custom.min.js"))
+		->prependFile($this->baseThemedUrl("/js/atp/jquery-1.8.2.js"))
+	?>
+</head>
+
+<body>
+	<div id="page">
+		<div id="page-content">
+			<?php echo $this->layout()->content; ?>
+		</div>
+	</div>
+</body>
+
+</html>

@@ -1,0 +1,5 @@
+<?php $columnUnderscore = \ATP\Inflector::underscore($this->column);?>
+
+<textarea class="html <?=$columnUnderscore?>" name="<?=$columnUnderscore?>">
+	<?=htmlspecialchars($this->object->{$this->column})?>
+</textarea>

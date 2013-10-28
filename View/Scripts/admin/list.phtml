@@ -1,0 +1,20 @@
+<?php if($this->flash->hasMessages()) { ?>
+	<?php foreach($this->flash->getMessages() as $message) { ?>
+		<p class="message"><?=$message?></p>
+	<?php } ?>
+<?php } ?>
+
+<?php $modelSingle = strtolower(\ATP\Inflector::singularize(\ATP\Inflector::titleize($this->model))) ?>
+
+<h2><?=\ATP\Inflector::titleize($this->model)?></h2>
+
+<?=$this->partial('admin/model_list.phtml', array('objects' => $this->objects, 'delete' => true))?>
+
+<div id="dialog-confirm" title="Deleting the <?=$modelSingle?>">
+	<p>
+		<span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 6em 0;"></span>
+		<b id="deleted-model-name">Item Name</b><br/><br/>
+		This <?=$modelSingle?> will be permanently deleted and cannot be recovered.<br/><br/>
+		<em>Are you sure you want to delete this <?=$modelSingle?>?</em>
+	</p>
+</div>

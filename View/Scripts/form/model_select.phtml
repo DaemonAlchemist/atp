@@ -1,0 +1,8 @@
+<select name="<?=\ATP\Inflector::underscore($this->column)?>_id">
+	<option value="">-- Select an option --</option>
+	<?php foreach($this->obj->loadMultiple() as $curObject) { ?>
+		<option value="<?=$curObject->id?>"<?=($this->obj->id == $curObject->id) ? " selected" : ""?>>
+			<?=$curObject->displayName()?>
+		</option>
+	<?php } ?>
+</select>

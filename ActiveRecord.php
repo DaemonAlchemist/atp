@@ -6,21 +6,18 @@ class ActiveRecord
 {
 	protected static $_definitions = array();
 	
+	private $_adapter = null;
+	
 	private $_data = array();
 	
-	public function __construct($id = null, $skipSetup = false)
+	public function __construct($adapter)
 	{
-		if(!$skipSetup) $this->_setup();
-		if(!is_null($id)) $this->load($id);
-	}
-	
-	protected function _setup()
-	{
+		$this->_adapter = $adapter;
 	}
 	
 	public static function init()
 	{
-		$obj = new static(null, true);
+		$obj = new static(null);
 		
 		$classFull = $obj->definitionIndex();
 		
@@ -48,10 +45,13 @@ class ActiveRecord
 		
 		$obj->isOrderedBy("id ASC");
 		$obj->createDefinition();
-		$obj->belongsToUserAsAclOwner();
-		$obj->belongsToGroupAsAclGroup();
 		
 		//echo "<pre>";print_r(self::$_definitions);die();
+	}
+
+	private function getAdapter()
+	{
+		return $this->_adapter;
 	}
 	
 	public function load($id)
@@ -99,7 +99,7 @@ class ActiveRecord
 	public function save()
 	{
 		$def = $this->getDefinition();
-		$db = \Zend_Registry::get('db');
+		$db = $this->getAdapter();
 
 		$filesToCopy = array();
 		
@@ -187,15 +187,6 @@ class ActiveRecord
 			$values[] = $this->_data[$column];
 		}
 		
-		//Add created timestamp
-		$columns[] = 'created_at';
-		$placeHolders[] = 'NOW()';
-		
-		//Add updated timestamp
-		$columns[] = 'updated_at';
-		$placeHolders[] = 'NOW()';
-		$updates[] = 'updated_at=NOW()';
-		
 		//Construct query
 		if(!$this->id)
 		{
@@ -273,7 +264,7 @@ class ActiveRecord
 	public function delete()
 	{
 		$def = $this->getDefinition();
-		$db = \Zend_Registry::get('db');
+		$db = $this->getAdapter();
 		
 		//Delete this object
 		$sql = "DELETE FROM {$def['table']} WHERE id={$this->id} LIMIT 1";
@@ -294,14 +285,13 @@ class ActiveRecord
 		}
 	}
 	
-	public static function loadMultiple($where = null, $data = array(), $joins = array(), $orderBy = null, $limit = null, $arrays = false)
+	public function loadMultiple($where = null, $data = array(), $joins = array(), $orderBy = null, $limit = null, $arrays = false)
 	{
 		//Get this model's definition
-		$obj = new static();
-		$def = $obj->getDefinition();
+		$def = $this->getDefinition();
 		
 		//Create columns list
-		$columns = "t.id id, t.created_at, t.updated_at";
+		$columns = "t.id id";
 		foreach($def['dataFields'] as $field)
 		{
 			$columns .= ", " . Inflector::underscore($field);
@@ -324,7 +314,7 @@ class ActiveRecord
 		if(!empty($limit)) $sql .= " LIMIT {$limit}";
 		
 		//Fetch the results
-		$results = \Zend_Registry::get('db')->fetchAll($sql, $data);
+		$results = $this->getAdapter()->query($sql, $data);
 		
 		//Create the returned objects
 		if($arrays)
@@ -333,11 +323,10 @@ class ActiveRecord
 		}
 		else
 		{
-			$obj = new static();
-			$rows = new \ATP\ActiveRecord\ModelList($obj->modelType());
+			$rows = new \ATP\ActiveRecord\ModelList($this->modelType());
 			foreach($results as $row)
 			{
-				$obj = new static();
+				$obj = new static($this->getAdapter());
 				$obj->loadFromArray($row);
 				$rows[] = $obj;
 			}
@@ -369,8 +358,6 @@ class ActiveRecord
 		
 		//Add standard fields
 		$json .= $fields['id'] = json_encode($this->id);
-		$json .= $fields['created_at'] = json_encode($this->createdAt);
-		$json .= $fields['updated_at'] = json_encode($this->updatedAt);
 		
 		//Add data fields
 		foreach($def['dataFields'] as $field)
@@ -577,8 +564,6 @@ class ActiveRecord
 		$def = $this->getDefinition();
 		
 		$owners = $def['owners'];
-		unset($owners['AclOwner']);
-		unset($owners['AclGroup']);
 		
 		return $owners;
 	}

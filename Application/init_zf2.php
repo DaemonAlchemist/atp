@@ -6,8 +6,9 @@ Zend\Loader\AutoloaderFactory::factory(array(
 		'autoregister_zf' => true,
 		'namespaces' => array(
 			'ATP' => 'vendor/ATP',
+			'Core' => 'module/Core/src/Core'
     )
 	)
 ));
 
-Zend\Mvc\Application::init(require 'vendor/ATP/configs/application.config.php')->run();
+Zend\Mvc\Application::init(require 'config/application.config.php')->run();

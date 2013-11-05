@@ -5,6 +5,7 @@ namespace ATP;
 class Module
 {
 	protected $_moduleName = "";
+	protected $_moduleBaseDir = "vendor";
 
     public function onBootstrap(\Zend\Mvc\MvcEvent $e)
     {
@@ -15,7 +16,7 @@ class Module
 
     public function getConfig()
     {
-        return include "module/{$this->_moduleName}/config/module.config.php";
+        return include "{$this->_moduleBaseDir}/{$this->_moduleName}/config/module.config.php";
     }
 
     public function getAutoloaderConfig()
@@ -23,7 +24,7 @@ class Module
         return array(
             'Zend\Loader\StandardAutoloader' => array(
                 'namespaces' => array(
-                    $this->_moduleName => "module/{$this->_moduleName}/src/{$this->_moduleName}",
+                    $this->_moduleName => "{$this->_moduleBaseDir}/{$this->_moduleName}/src/{$this->_moduleName}",
                 ),
             ),
         );

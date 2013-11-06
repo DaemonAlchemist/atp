@@ -16,7 +16,7 @@ class Module
 
     public function getConfig()
     {
-        return include "{$this->_moduleBaseDir}/{$this->_moduleName}/config/module.config.php";
+        return include "{$this->_moduleBaseDir}/config/module.config.php";
     }
 
     public function getAutoloaderConfig()
@@ -24,7 +24,7 @@ class Module
         return array(
             'Zend\Loader\StandardAutoloader' => array(
                 'namespaces' => array(
-                    $this->_moduleName => "{$this->_moduleBaseDir}/{$this->_moduleName}/src/{$this->_moduleName}",
+                    $this->_moduleName => "{$this->_moduleBaseDir}/src/{$this->_moduleName}",
                 ),
             ),
         );

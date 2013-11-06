@@ -11,6 +11,7 @@ class Config
 				'module_paths' => array(
 					'./module',
 					'./vendor',
+					'./vendor/atp-modules',
 				),
 
 				'config_glob_paths' => array(

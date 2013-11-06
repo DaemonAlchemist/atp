@@ -6,8 +6,7 @@ Zend\Loader\AutoloaderFactory::factory(array(
 		'autoregister_zf' => true,
 		'namespaces' => array(
 			'ATP' => 'vendor/ATP',
-			'Core' => 'module/Core/src/Core'
-    )
+		)
 	)
 ));
 

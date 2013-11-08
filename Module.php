@@ -9,9 +9,6 @@ class Module
 
     public function onBootstrap(\Zend\Mvc\MvcEvent $e)
     {
-        $eventManager        = $e->getApplication()->getEventManager();
-        $moduleRouteListener = new \Zend\Mvc\ModuleRouteListener();
-        $moduleRouteListener->attach($eventManager);
     }
 
     public function getConfig()

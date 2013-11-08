@@ -6,13 +6,18 @@ class ActiveRecord
 {
 	protected static $_definitions = array();
 	
-	private $_adapter = null;
+	private static $_adapter = null;
 	
 	private $_data = array();
 	
-	public function __construct($adapter)
+	public function __construct($id = null)
 	{
-		$this->_adapter = $adapter;
+		if(!is_null($id)) $this->load($id);
+	}
+	
+	public static function setAdapter($adapter)
+	{
+		self::$_adapter = $adapter;
 	}
 	
 	public static function init()
@@ -51,7 +56,7 @@ class ActiveRecord
 
 	private function getAdapter()
 	{
-		return $this->_adapter;
+		return self::$_adapter;
 	}
 	
 	public function load($id)
@@ -324,9 +329,10 @@ class ActiveRecord
 		else
 		{
 			$rows = new \ATP\ActiveRecord\ModelList($this->modelType());
+			
 			foreach($results as $row)
 			{
-				$obj = new static($this->getAdapter());
+				$obj = new static();
 				$obj->loadFromArray($row);
 				$rows[] = $obj;
 			}

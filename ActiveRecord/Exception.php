@@ -2,6 +2,6 @@
 
 namespace ATP\ActiveRecord;
 
-class Exception extends \Zend_Exception
+class Exception extends \Exception
 {
 }

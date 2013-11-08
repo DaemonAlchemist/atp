@@ -217,14 +217,14 @@ class ActiveRecord
 		$id = $this->id;
 		if(empty($id))
 		{
-			$this->id = $db->lastInsertId();
+			$this->id = $db->getDriver()->getLastGeneratedValue();
 		}
 		
 		//Process files
 		foreach($filesToCopy as $name => $data)
 		{
 			$path = realpath(dirname($_SERVER['SCRIPT_FILENAME']));
-			$path .= "/" . \Zend_Registry::get('config')->fileUploadPath;
+			$path .= "/uploads";
 			$path .= "/{$def['table']}/{$this->id}/";
 			if(!is_dir($path)) mkdir($path, 0755, true);
 			$path .= $data['name'];

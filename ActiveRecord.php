@@ -349,7 +349,12 @@ class ActiveRecord
 		}
 	}
 	
-	public function toJson($maxRecursionDepth = 0, $objectStack = array())
+	public function toJson($maxRecursionDepth = 0)
+	{
+		return json_encode($this->toArray($maxRecursionDepth));
+	}
+	
+	public function toArray($maxRecursionDepth = 0, $objectStack = array())
 	{
 		$def = $this->getDefinition();
 		
@@ -358,21 +363,22 @@ class ActiveRecord
 		if(in_array($identifier, $objectStack)) return "\"*RECURSION*\"";		
 		$objectStack[] = $identifier;
 		
-		$json = "{";
-		
 		$fields = array();
 		
 		//Add standard fields
-		$json .= $fields['id'] = json_encode($this->id);
+		$fields['id'] = $this->id;
 		
 		//Add data fields
 		foreach($def['dataFields'] as $field)
 		{
-			$column = Inflector::underscore($field);
+			$column = Inflector::variablize($field);
 			
 			$fieldName = lcfirst($field);
-			$fields[$column] = json_encode($this->$fieldName);
+			$fields[$column] = $this->$fieldName;
 		}		
+		
+		//Add custom fields
+		$this->_toArrayCustom($fields);
 		
 		if($maxRecursionDepth > 0)
 		{
@@ -388,28 +394,19 @@ class ActiveRecord
 				//Make sure to load related objects if they haven't been
 				if(!isset($this->$columnFull)) $this->$columnFull;
 				
-				$objJson = array();
+				$objList = array();
 				foreach($this->$columnFull as $obj)
 				{
-					$objJson[] = "\"{$obj->identity()}\": {$obj->toJson($maxRecursionDepth - 1, $objectStack)}";
+					$objList[$obj->identity()] = $obj->toArray($maxRecursionDepth - 1, $objectStack);
 				}
-				$fields[$columnFull] = "{" . implode(",", $objJson) . "}";
+				$fields[$columnFull] = $objList;
 			}
 		}
 		
-		$this->_jsonCustom($fields);
-		
-		$fields = \ATP\MapReduce::get()
-			->map(function($item, $index) {return "\"{$index}\": {$item}";})
-			->reduce(new \ATP\Reducer\Concatenate(','))
-			->process($fields);
-		
-		$json = '{' . $fields . '}';
-		
-		return $json;
+		return $fields;
 	}
 	
-	protected function _jsonCustom(&$fields)
+	protected function _toArrayCustom(&$fields)
 	{
 	}
 	

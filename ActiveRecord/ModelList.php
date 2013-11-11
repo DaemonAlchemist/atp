@@ -41,6 +41,21 @@ class ModelList extends \ArrayObject
 		return $newValues;
 	}
 	
+	public function toJson()
+	{
+		$json = "[";
+		
+		$json .= \ATP\MapReduce::process(
+			$this->toArray(),
+			function($obj){return $obj->toJson();},
+			new \ATP\Reducer\Concatenate(",")
+		);
+		
+		$json .= "]";
+		
+		return $json;
+	}
+	
 	public function reverse($preserveKeys = false)
 	{
 		$newValues = array_reverse($this->toArray(), $preserveKeys);

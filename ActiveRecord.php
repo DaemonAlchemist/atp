@@ -72,10 +72,10 @@ class ActiveRecord
 			$data[] = $id;
 		}
 		
-		$rows = static::loadMultiple($where, $data, array(), null, null, true);		
+		$rows = $this->loadMultiple($where, $data, array(), null, null, false);		
 		if(count($rows) == 0) return false;
 		
-		$this->loadFromArray($rows[0]);
+		$this->_data = $rows[0]->_data;
 		return true;
 	}
 	
@@ -371,10 +371,8 @@ class ActiveRecord
 		//Add data fields
 		foreach($def['dataFields'] as $field)
 		{
-			$column = Inflector::variablize($field);
-			
 			$fieldName = lcfirst($field);
-			$fields[$column] = $this->$fieldName;
+			$fields[$fieldName] = $this->$fieldName;
 		}		
 		
 		//Add custom fields

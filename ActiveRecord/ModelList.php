@@ -43,15 +43,15 @@ class ModelList extends \ArrayObject
 	
 	public function toJson()
 	{
-		$json = "[";
+		$json = "{";
 		
 		$json .= \ATP\MapReduce::process(
 			$this->toArray(),
-			function($obj){return $obj->toJson();},
+			function($obj){return "\"" . $obj->id . "\": " . $obj->toJson();},
 			new \ATP\Reducer\Concatenate(",")
 		);
 		
-		$json .= "]";
+		$json .= "}";
 		
 		return $json;
 	}

@@ -487,8 +487,7 @@ class ActiveRecord
 	{
 		$def = $this->getDefinition();
 	
-		$path = \Zend_Registry::get('config')->fileUploadPath;
-		$path .= "/{$def['table']}/{$this->id}/";
+		$path = "/uploads/{$def['table']}/{$this->id}/";
 		$path .= $this->$column->name;
 		return $path;
 	}

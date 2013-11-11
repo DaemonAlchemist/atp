@@ -7,6 +7,7 @@ Zend\Loader\AutoloaderFactory::factory(array(
 		'namespaces' => array(
 			'ATP' => 'vendor/ATP',
 			'Assetic' => 'vendor/Assetic/src/Assetic',
+			'Imagine' => 'vendor/Imagine/lib/Imagine',
 		)
 	)
 ));

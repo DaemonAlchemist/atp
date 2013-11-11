@@ -13,6 +13,6 @@ class Concatenate
 	
 	public function __invoke($reduced, $item)
 	{
-		return is_null($reduced) ? $item : $reduced . $this->_sep . $item;
+		return empty($reduced) ? $item : $reduced . $this->_sep . $item;
 	}
 }

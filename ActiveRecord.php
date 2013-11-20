@@ -29,16 +29,11 @@ class ActiveRecord
 		self::$_definitions[$classFull] = array(
 			'dataFields' => array(),
 			'fileFields' => array(),
-			'contentFields' => array(),
-			'htmlFields' => array(),
-			'booleanFields' => array(),
-			'dateFields' => array(),
 			'owners' => array(),
 			'subObjects' => array(),
 			'relatedObjects' => array(),
 			'identityField' => 'id',
-			'adminColumns' => array(),
-			'displayColumn' => 'id'
+			'tableNamespace' => '',
 		);
 		
 		$parts = explode("\\",get_class($obj));
@@ -46,10 +41,12 @@ class ActiveRecord
 		$namespace = implode("\\", $parts);
 		self::$_definitions[$classFull]['namespace'] = $namespace;
 		
-		$obj->livesIn(Inflector::pluralize(Inflector::underscore($classFull)));
-		
-		$obj->isOrderedBy("id ASC");
 		$obj->createDefinition();
+		
+		$table = Inflector::pluralize(Inflector::underscore($classFull));
+		$tNamespace = self::$_definitions[$classFull]['tableNamespace'];
+		if(!empty($tNamespace)) $table = "{$tNamespace}_{$table}";
+		$obj->livesIn($table);
 		
 		//echo "<pre>";print_r(self::$_definitions);die();
 	}
@@ -84,17 +81,6 @@ class ActiveRecord
 		$data = is_array($obj) ? $obj : $obj->_data;
 		foreach($data as $name => $value)
 		{
-			//Handle special fields
-			switch($this->adminFieldType(Inflector::camelize($name)))
-			{
-				case 'boolean':
-					if(is_array($value)) $value = count($value) == 2;
-					else $value = $value ? true : false;
-					break;
-				default:
-					break;
-			}			
-		
 			$func = "filter" . Inflector::camelize($name);
 			$this->_data[$name] = method_exists($this, $func) ? $this->$func($value) : $value;
 		}
@@ -315,7 +301,7 @@ class ActiveRecord
 		$sql = "SELECT {$columns} FROM {$def['table']} t";
 		if(!empty($joins)) $sql .= " " . implode(" ", $joins);
 		if(!empty($where)) $sql .= " WHERE " . (is_array($where) ? implode(" AND ", $where) : $where);
-		$sql .= " ORDER BY " . (is_null($orderBy) ? $def['orderBy'] : $orderBy);
+		if(!is_null($orderBy)) $sql .= " ORDER BY {$orderBy}";
 		if(!empty($limit)) $sql .= " LIMIT {$limit}";
 		
 		//Fetch the results
@@ -404,6 +390,11 @@ class ActiveRecord
 		return $fields;
 	}
 	
+	public function displayName()
+	{
+		return $this->id;
+	}
+	
 	protected function _toArrayCustom(&$fields)
 	{
 	}
@@ -441,6 +432,12 @@ class ActiveRecord
 		return \ATP\Inflector::underscore(\ATP\Inflector::pluralize($this->definitionIndex()));
 	}
 	
+	public function tableNamespace($namespace)
+	{
+		self::$_definitions[$this->definitionIndex()]['tableNamespace'] = $namespace;
+		return $this;
+	}
+	
 	public function isIdentifiedBy($field)
 	{
 		self::$_definitions[$this->definitionIndex()]['identityField'] = $field;
@@ -475,7 +472,7 @@ class ActiveRecord
 	
 	public function isAFile($column)
 	{
-		return $this->adminFieldType($column) == 'file';
+		return in_array($column, self::$_definitions[$this->definitionIndex()]['fileFields']);
 	}
 	
 	public function filePath($column)
@@ -487,71 +484,9 @@ class ActiveRecord
 		return $path;
 	}
 	
-	public function hasContent()
-	{
-		self::$_definitions[$this->definitionIndex()]['contentFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function isContent($column)
-	{
-		return $this->adminFieldType($column) == 'content';
-	}
-
-	public function hasHtmlContent()
-	{
-		self::$_definitions[$this->definitionIndex()]['htmlFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function hasBoolean()
-	{
-		self::$_definitions[$this->definitionIndex()]['booleanFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function hasDate()
-	{
-		self::$_definitions[$this->definitionIndex()]['dateFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function isHtmlContent($column)
-	{
-		return $this->adminFieldType($column) == 'html';
-	}
-
-	public function adminFieldType($field)
-	{
-		$types = array('file', 'content', 'html', 'date', 'boolean');
-		foreach($types as $type)
-		{
-			if(in_array($field, self::$_definitions[$this->definitionIndex()]["{$type}Fields"])) return $type;
-		}
-	
-		return 'text';
-	}
-	
 	public function dataColumns()
 	{
 		return self::$_definitions[$this->definitionIndex()]['dataFields'];
-	}
-	
-	protected function hasAdminColumns()
-	{
-		self::$_definitions[$this->definitionIndex()]['adminColumns'] = func_get_args();
-		return $this;
-	}
-	
-	public function adminColumns()
-	{
-		return self::$_definitions[$this->definitionIndex()]['adminColumns'];
-	}
-	
-	public function displayName()
-	{
-		$column = self::$_definitions[$this->definitionIndex()]['displayColumn'];
-		return $this->$column;
 	}
 	
 	public function __toString()
@@ -578,12 +513,6 @@ class ActiveRecord
 	{
 		$def = $this->getDefinition();
 		return $def['relatedObjects'];
-	}
-	
-	protected function isOrderedBy($order)
-	{
-		self::$_definitions[$this->definitionIndex()]['orderBy'] = $order;
-		return $this;
 	}
 	
 	public function __call($func, $args)
@@ -778,12 +707,6 @@ class ActiveRecord
 	private function _has($table, $column)
 	{
 		self::$_definitions[$this->definitionIndex()]['subObjects'][$column] = $table;
-		return $this;
-	}
-	
-	private function _displayedAs($column)
-	{
-		self::$_definitions[$this->definitionIndex()]['displayColumn'] = $column;
 		return $this;
 	}
 	

@@ -34,6 +34,7 @@ class ActiveRecord
 			'relatedObjects' => array(),
 			'identityField' => 'id',
 			'tableNamespace' => '',
+			'defaultOrder' => '',
 		);
 		
 		$parts = explode("\\",get_class($obj));
@@ -43,10 +44,10 @@ class ActiveRecord
 		
 		$obj->createDefinition();
 		
-		$table = Inflector::pluralize(Inflector::underscore($classFull));
-		$tNamespace = self::$_definitions[$classFull]['tableNamespace'];
-		if(!empty($tNamespace)) $table = "{$tNamespace}_{$table}";
-		$obj->livesIn($table);
+		if(!isset(self::$_definitions[$classFull]['table']))
+		{
+			$obj->livesIn(Inflector::pluralize(Inflector::underscore($classFull)));
+		}
 		
 		//echo "<pre>";print_r(self::$_definitions);die();
 	}
@@ -101,7 +102,7 @@ class ActiveRecord
 		
 		//Determine if a duplicate identity is about to be created
 		$idField = Inflector::underscore($def['identityField']);
-		$objects = static::loadMultiple("{$idField} = \"{$this->$idField}\"");
+		$objects = $this->loadMultiple("{$idField} = \"{$this->$idField}\"");
 		if(count($objects) > 0)
 		{
 			$obj = $objects[0];
@@ -258,8 +259,8 @@ class ActiveRecord
 		$db = $this->getAdapter();
 		
 		//Delete this object
-		$sql = "DELETE FROM {$def['table']} WHERE id={$this->id} LIMIT 1";
-		$db->query($sql);
+		$sql = "DELETE FROM {$def['table']} WHERE id=? LIMIT 1";
+		$db->query($sql, array($this->id));
 		
 		//Todo: delete sub objects
 		
@@ -297,11 +298,14 @@ class ActiveRecord
 			$columns .= ", t." . \ATP\Inflector::underscore($column) . "_id";
 		}
 		
+		//Set default order
+		if(is_null($orderBy)) $orderBy = $def['defaultOrder'];
+		
 		//Build sql
 		$sql = "SELECT {$columns} FROM {$def['table']} t";
 		if(!empty($joins)) $sql .= " " . implode(" ", $joins);
 		if(!empty($where)) $sql .= " WHERE " . (is_array($where) ? implode(" AND ", $where) : $where);
-		if(!is_null($orderBy)) $sql .= " ORDER BY {$orderBy}";
+		if(!empty($orderBy)) $sql .= " ORDER BY {$orderBy}";
 		if(!empty($limit)) $sql .= " LIMIT {$limit}";
 		
 		//Fetch the results
@@ -444,6 +448,12 @@ class ActiveRecord
 		return $this;
 	}
 	
+	public function isOrderedBy($order)
+	{
+		self::$_definitions[$this->definitionIndex()]['defaultOrder'] = $order;
+		return $this;
+	}
+	
 	public function identity()
 	{
 		$def = $this->getDefinition();
@@ -453,8 +463,14 @@ class ActiveRecord
 	
 	protected function livesIn($tableName)
 	{
-		self::$_definitions[$this->definitionIndex()]['table'] = $tableName;
-		self::$_definitions[$this->definitionIndex()]['name'] = Inflector::singularize($tableName);
+		$def = &self::$_definitions[$this->definitionIndex()];
+
+		$table = $tableName;
+		$tNamespace = $def['tableNamespace'];
+		if(!empty($tNamespace)) $table = "{$tNamespace}_{$table}";
+
+		$def['table'] = $table;
+		$def['name'] = Inflector::singularize(Inflector::underscore($tableName));
 		return $this;
 	}
 	
@@ -631,9 +647,7 @@ class ActiveRecord
 
 		$column = "{$nameUnderscore}_id";
 		
-		$classNameBase = Inflector::singularize($def['owners'][$name]);
-		$classNameBasePlural = Inflector::pluralize($classNameBase);
-		$className = \Zend_Registry::get('config')->models->$classNameBasePlural->class;
+		$className = $def['namespace'] . "\\" . Inflector::singularize($def['owners'][$name]);
 		
 		$id = isset($this->_data[$column]) ? $this->_data[$column] : null;
 		$this->_data[$nameUnderscore] = new $className($id);
@@ -649,7 +663,7 @@ class ActiveRecord
 		$className = $def['namespace'] . "\\" . substr($name, 0, -4);
 		$obj = new $className();
 		$this->_data[$nameUnderscore] = new \ATP\ActiveRecord\ModelList($obj->modelType());
-		foreach($className::loadMultiple("{$def['name']}_id={$this->id}") as $obj)
+		foreach($obj->loadMultiple("{$def['name']}_id={$this->id}") as $obj)
 		{
 			$this->_data[$nameUnderscore][$obj->identity()] = $obj;
 		}
@@ -676,7 +690,7 @@ class ActiveRecord
 		$data = array($this->id);
 		$obj = new $otherEntityClass();
 		$this->_data[$nameUnderscore] = new \ATP\ActiveRecord\ModelList($obj->modelType());
-		foreach($otherEntityClass::loadMultiple($where, $data, $joins) as $obj)
+		foreach($obj->loadMultiple($where, $data, $joins) as $obj)
 		{
 			$this->_data[$nameUnderscore][$obj->identity()] = $obj;
 		}

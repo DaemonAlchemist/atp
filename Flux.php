@@ -21,8 +21,9 @@ class Flux
 		$config = \Zend_Registry::get('config')->flux;
 		
 		\ATP\Flux\Model\Task::reserve(static::processId(), $config->taskCount);
-		
-		return \ATP\Flux\Model\Task::loadMultiple("status = 'ready' AND process_id = ?", array(static::processId()));
+
+		$obj = new \ATP\Flux\Model\Task();
+		return $obj->loadMultiple("status = 'ready' AND process_id = ?", array(static::processId()));
 	}
 	
 	public static function getFinishedTasks($jobId)
@@ -49,7 +50,8 @@ class Flux
 			$sql .= " AND id NOT IN (" . implode(", ", $placeHolders) . ")";
 		}
 	
-		$tasks = \ATP\Flux\Model\Task::loadMultiple($sql,$data);
+		$task = new \ATP\Flux\Model\Task();
+		$tasks = $task->loadMultiple($sql,$data);
 		
 		foreach($tasks as $task)
 		{

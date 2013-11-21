@@ -42,7 +42,8 @@ class Admin extends \Zend_Controller_Action
     public function listAction()
     {
         $modelFull = $this->view->modelFull;
-		$this->view->objects = $modelFull::loadMultiple();
+		$obj = new $modelFull();
+		$this->view->objects = $obj->loadMultiple();
     }
 
     public function editAction()

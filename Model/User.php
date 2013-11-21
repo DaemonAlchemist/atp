@@ -70,7 +70,8 @@ class User extends \ATP\ActiveRecord
 	
 	public static function noUsers()
 	{
-		return count(static::loadMultiple()) == 0;
+		$obj = new self();
+		return count($obj->loadMultiple()) == 0;
 	}
 
 	public function postLoadPassword($password)

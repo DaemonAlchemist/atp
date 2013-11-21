@@ -19,7 +19,8 @@ class View extends \Zend_View
 		if(count(static::$_blocks) == 0 && \Zend_Registry::get('config')->useStaticBlocks)
 		{
 			$className = \Zend_Registry::get('config')->modelClass('StaticBlocks');
-			$blocks = $className::loadMultiple();
+			$obj = new $className();
+			$blocks = $obj->loadMultiple();
 			foreach($blocks as $block)
 			{
 				static::$_blocks['{{' . $block->identifier . '}}'] = $block->content;
@@ -30,7 +31,8 @@ class View extends \Zend_View
 		if(count(static::$_params) == 0)
 		{
 			$className = \Zend_Registry::get('config')->modelClass('Parameters');
-			$params = $className::loadMultiple();
+			$obj = new $className();
+			$params = $obj->loadMultiple();
 			foreach($params as $param)
 			{
 				static::$_params['##' . $param->identifier . '##'] = $param->value;

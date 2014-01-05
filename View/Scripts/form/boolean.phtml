@@ -1,4 +1,0 @@
-<?php $columnUnderscore = \ATP\Inflector::underscore($this->column);?>
-
-<input type="checkbox" class="<?=$columnUnderscore?>" name="<?=$columnUnderscore?>[]"<?= ($this->object->{$this->column}) ? " checked" : "" ?>/>
-<input type="hidden" name="<?=$columnUnderscore?>[]" value="1" />

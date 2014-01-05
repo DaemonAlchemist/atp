@@ -1,3 +1,0 @@
-<?php $columnUnderscore = \ATP\Inflector::underscore($this->column);?>
-
-<input type="text" class="<?=$columnUnderscore?> date-field" name="<?=$columnUnderscore?>" value="<?=str_replace("\n","\\n", htmlspecialchars($this->object->{$this->column}))?>" />

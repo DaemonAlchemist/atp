@@ -52,7 +52,7 @@ class ActiveRecord
 		//echo "<pre>";print_r(self::$_definitions);die();
 	}
 
-	private function getAdapter()
+	protected function getAdapter()
 	{
 		return self::$_adapter;
 	}
@@ -71,10 +71,16 @@ class ActiveRecord
 		}
 		
 		$rows = $this->loadMultiple($where, $data, array(), null, null, false);		
+
 		if(count($rows) == 0) return false;
 		
-		$this->_data = $rows[0]->_data;
+		$this->copyFrom($rows[0]);
 		return true;
+	}
+	
+	public function copyFrom($obj)
+	{
+		$this->_data = $obj->_data;
 	}
 	
 	public function setFrom($obj)

@@ -27,4 +27,9 @@ class File
 			'size' => $this->size
 		));
 	}
+	
+	public function exists()
+	{
+		return !empty($this->name);
+	}
 }

@@ -13,7 +13,32 @@ class Module
 
     public function getConfig()
     {
-        return include "{$this->_moduleBaseDir}/config/module.config.php";
+        $config = include("{$this->_moduleBaseDir}/config/module.config.php");
+		
+		//Load assets from module's public path
+		if(!isset($config['asset_manager']))
+		{
+			$config['asset_manager'] = array(
+				'resolver_configs' => array(
+					'paths' => array(
+						"{$this->_moduleBaseDir}/public",
+					),
+				),
+			);
+		}
+
+		//Load view from module's view path
+		if(!isset($config['view_manager']))
+		{
+			$config['view_manager'] = array(
+				'template_path_stack' => array(
+					"{$this->_moduleBaseDir}/view",
+				)
+			);
+		}
+		
+		//echo "<pre>";print_r($config);die();
+		return $config;
     }
 
     public function getAutoloaderConfig()

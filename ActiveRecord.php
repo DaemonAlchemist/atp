@@ -4,15 +4,17 @@ namespace ATP;
 
 class ActiveRecord
 {
-	protected static $_definitions = array();
-	
+	//ActiveRecord static members
 	private static $_adapter = null;
-	
+	private static $_databaseDef = null;
+	private static $_classDefs = array();
+
 	private $_data = array();
+	private $_tableNamespace = null;
 	
-	public function __construct($id = null)
+	public function __construct()
 	{
-		if(!is_null($id)) $this->load($id);
+		$this->clear();
 	}
 	
 	public static function setAdapter($adapter)
@@ -20,85 +22,115 @@ class ActiveRecord
 		self::$_adapter = $adapter;
 	}
 	
-	public static function init()
-	{
-		$obj = new static(null);
-		
-		$classFull = $obj->definitionIndex();
-		
-		self::$_definitions[$classFull] = array(
-			'dataFields' => array(),
-			'fileFields' => array(),
-			'owners' => array(),
-			'subObjects' => array(),
-			'relatedObjects' => array(),
-			'identityField' => 'id',
-			'tableNamespace' => '',
-			'defaultOrder' => '',
-		);
-		
-		$parts = explode("\\",get_class($obj));
-		array_pop($parts);
-		$namespace = implode("\\", $parts);
-		self::$_definitions[$classFull]['namespace'] = $namespace;
-		
-		$obj->createDefinition();
-		
-		if(!isset(self::$_definitions[$classFull]['table']))
-		{
-			$obj->livesIn(Inflector::pluralize(Inflector::underscore($classFull)));
-		}
-		
-		//echo "<pre>";print_r(self::$_definitions);die();
-	}
-
-	protected function getAdapter()
+	public static function getAdapter()
 	{
 		return self::$_adapter;
 	}
 	
-	public function load($id)
+	public static function init()
 	{
-		$def = $this->getDefinition();
-		$idField = Inflector::underscore($def['identityField']);
+		//Load database definitions
+		if(is_null(self::$_databaseDef)) self::_loadDatabaseDefinition();
 		
-		$where = "t.{$idField}=?";
-		$data = array($id);
-		if(is_numeric($id))
-		{
-			$where .= " OR t.id=?";
-			$data[] = $id;
-		}
+		$obj = new static();
 		
-		$rows = $this->loadMultiple($where, $data, array(), null, null, false);		
+		//Set default class name
+		$classNameFull = "\\" . get_class($obj);
+		$classSplit = explode("\\",$classNameFull);
+		$class=end($classSplit);
+		$table=\ATP\Inflector::underscore(\ATP\Inflector::pluralize($class));
+		
+		self::$_classDefs[$classNameFull] = array();
+		self::$_classDefs[$classNameFull]['children'] = array();
+		self::$_classDefs[$classNameFull]['owners'] = array();
+		self::$_classDefs[$classNameFull]['defaultOrder'] = "id ASC";
 
-		if(count($rows) == 0) return false;
+		//Setup class
+		$obj->setup();
 		
-		$this->copyFrom($rows[0]);
-		return true;
-	}
-	
-	public function copyFrom($obj)
-	{
-		$this->_data = $obj->_data;
-	}
-	
-	public function setFrom($obj)
-	{
-		$data = is_array($obj) ? $obj : $obj->_data;
-		foreach($data as $name => $value)
+		//Determine final table name
+		$tableFull = (is_null($obj->getTableNamespace()) ? $table : $obj->getTableNamespace() . "_" . $table);
+		self::$_databaseDef['tables'][$tableFull]['class'] = $classNameFull;
+		self::$_databaseDef['classes'][$classNameFull] = array();
+		self::$_databaseDef['classes'][$classNameFull]['table'] = $tableFull;
+		self::$_databaseDef['classes'][$classNameFull]['namespace'] = $obj->getTableNamespace();
+		
+		//Copy definition to class
+		self::$_classDefs[$classNameFull]['namespace'] = $obj->getTableNamespace();
+		self::$_classDefs[$classNameFull]['table'] = $tableFull;
+		foreach(self::$_databaseDef['tables'][$tableFull] as $key => $data)
 		{
-			$func = "filter" . Inflector::camelize($name);
-			$this->_data[$name] = method_exists($this, $func) ? $this->$func($value) : $value;
+			self::$_classDefs[$classNameFull][$key] = $data;
 		}
+	}
+	
+	protected function setTableNamespace($ns)
+	{
+		$this->_tableNamespace = $ns;
 		return $this;
+	}
+	
+	public function getTableNamespace()
+	{
+		return $this->_tableNamespace;
+	}
+	
+	protected function setTable($table)
+	{
+		static::$_table = $table;
+		return $this;
+	}
+	
+	public function isOrderedBy($order)
+	{
+		$classNameFull = "\\" . get_class($this);
+		self::$_classDefs[$classNameFull]['defaultOrder'] = $order;
+	}
+	
+	public function getDefinition()
+	{
+		$classNameFull = "\\" . get_class($this);
+		return isset(self::$_classDefs[$classNameFull]) ? self::$_classDefs[$classNameFull] : null;
+	}
+	
+	public function loadMultiple($params = array())
+	{
+		//Get definition
+		$def = $this->getDefinition();
+		
+		//Construct query
+		$sql = "SELECT * from {$def['table']}";		
+		if(!empty($params['where'])) $sql .= " WHERE " . (is_array($params['where']) ? implode(" AND ", $params['where']) : $params['where']);
+		$sql .= " ORDER BY " . (empty($params['orderBy']) ? $def['defaultOrder'] : $params['orderBy']);
+		if(!empty($params['limit'])) $sql .= " LIMIT {$params['limit']}";
+
+		//Get the records
+		$results = $this->getAdapter()->query($sql, isset($params['data']) ? $params['data'] : array());
+		
+		if(isset($params['useArrays']) && $params['useArrays'])
+		{
+			$rows = $results;
+		}
+		else
+		{
+			$rows = new \ATP\ActiveRecord\ModelList($def['table']);
+			
+			foreach($results as $row)
+			{
+				$obj = new static();
+				$obj->loadFromArray($row);
+				$rows[] = $obj;
+			}
+		}
+		
+		return $rows;		
 	}
 	
 	public function save()
 	{
 		$def = $this->getDefinition();
 		$db = $this->getAdapter();
-
+		
 		$filesToCopy = array();
 		
 		$columns = array();
@@ -106,55 +138,32 @@ class ActiveRecord
 		$updates = array();
 		$values = array();
 		
-		//Determine if a duplicate identity is about to be created
-		$idField = Inflector::underscore($def['identityField']);
-		$objects = $this->loadMultiple("{$idField} = \"{$this->$idField}\"");
-		if(count($objects) > 0)
-		{
-			$obj = $objects[0];
-			if($obj->id != $this->id)
-			{
-				throw new \ATP\ActiveRecord\Exception("Duplicate {$idField}");
-			}
-		}
-		
-		//Add id field if populated
-		if($this->id)
-		{
-			$columns[] = 'id';
-			$placeHolders[] = "?";
-			$updates[] = "id=?";
-			$values[] = $this->id;
-		}
-		
-		//Add data fields
-		foreach($def['dataFields'] as $field)
+		//Add fields
+		foreach(array_keys($def['columns']) as $column)
 		{
 			$setField = true;
-		
-			$column = Inflector::underscore($field);
 			
-			$fieldName = lcfirst($field);
-			$value = $this->$fieldName;
+			$value = $this->$column;
+			
+			//Run preSave functions
+			$columnCamelized = \ATP\Inflector::camelize($column);
+			$func = "preSave{$columnCamelized}";
+			if(method_exists($this, $func)) $value = $this->$func($value);
 
-			$func = "preSave{$field}";
-			$value = method_exists($this, $func)
-				? $this->$func($value)
-				: $value;
-			
 			//Process file fields
 			if(is_array($value))
 			{
 				if($value['error'] != 4)
 				{
-					$filesToCopy[$field] = $value;
+					$filesToCopy[$column] = $value;
 					$file = new \ATP\ActiveRecord\File();
 					$file->setFrom($value);
 					$value = $file;
-					$this->$fieldName = $file;
+					$this->$column = $file;
 				}
 				else
 				{
+					//Don't update the file field if there was an error or no new file was updated
 					$setField = false;
 				}
 			}
@@ -164,7 +173,8 @@ class ActiveRecord
 			{
 				$value = $value->toJson();
 			}
-
+			
+			//Add the field to the query
 			if($setField)
 			{
 				$columns[] = $column;
@@ -172,22 +182,11 @@ class ActiveRecord
 				$placeHolders[] = "?";
 				$updates[] = "{$column}=?";
 			}
-			
 		}
 		
-		//Add owner fields
-		foreach($def['owners'] as $column => $obj)
-		{
-			$column = \ATP\Inflector::underscore($column) . "_id";
-			$columns[] = $column;
-			$placeHolders[] = "?";
-			$updates[] = "{$column}=?";
-			$values[] = $this->_data[$column];
-		}
-		
-		//Construct query
 		if(!$this->id)
 		{
+			//Insert new object if id is not set
 			$sql  = "INSERT INTO {$def['table']} ";
 			$sql .= "(" . implode(", ", $columns) . ") values (";
 			$sql .= implode(", ", $placeHolders);
@@ -197,6 +196,7 @@ class ActiveRecord
 		}
 		else
 		{
+			//Otherwise, update existing object
 			$sql  = "UPDATE {$def['table']} SET ";
 			$sql .= implode(", ", $updates);
 			$sql .= " WHERE id=" . $this->id;
@@ -223,181 +223,55 @@ class ActiveRecord
 			$path .= $data['name'];
 			if(!move_uploaded_file($data['tmp_name'], $path)) die();
 		}
-		
-		//Update sub objects
-		// Todo
-		
-		//Update related objects
-		foreach($def['relatedObjects'] as $column => $relation)
-		{
-			$columnFull = Inflector::variablize($column) . "List";
-
-			//Make sure to load related objects if they haven't been
-			if(!isset($this->$columnFull)) $this->$columnFull;
-
-			//Delete all references in mapping table
-			$keyName = $relation['columnName'];
-			$sql = "DELETE FROM {$relation['mappingTable']} WHERE {$keyName}_id= ?";
-			$db->query($sql, array($this->id));			
-			
-			foreach($this->$columnFull as $obj)
-			{
-				//Get other definition
-				$defOther = $obj->getDefinition();
-			
-				//Insert reference to this object
-				$className = $relation['columnName'];
-				$otherClassName = $relation['relatedObjectColumnName'];
-				$sql = "INSERT INTO {$relation['mappingTable']} ({$className}_id, {$otherClassName}_id) values (?, ?)";
-				$db->query($sql, array($this->id, $obj->id));
-			}
-		}
-	}
-
-	protected function _preSave()
-	{
-		//Update the object before saving
 	}
 	
-	public function delete()
+	public function clear()
 	{
+		$this->_data = array();
+		
 		$def = $this->getDefinition();
-		$db = $this->getAdapter();
-		
-		//Delete this object
-		$sql = "DELETE FROM {$def['table']} WHERE id=? LIMIT 1";
-		$db->query($sql, array($this->id));
-		
-		//Todo: delete sub objects
-		
-		//Delete related object mapping entries
-		foreach($def['relatedObjects'] as $column => $relation)
-		{
-			//Make sure to load related objects if they haven't been
-			$columnFull = Inflector::camelize($column) . "List";
-			$className = Inflector::singularize($def['table']);
-
-			//Delete all references in mapping table
-			$sql = "DELETE FROM {$relation['mappingTable']} WHERE {$className}_id= ?";
-			$db->query($sql, array($this->id));			
-		}
+		if(is_null($def)) return;
+		foreach(array_keys($def['columns']) as $column) $this->_data[$column] = null;
 	}
 	
-	public function loadMultiple($where = null, $data = array(), $joins = array(), $orderBy = null, $limit = null, $arrays = false)
-	{
-		//Get this model's definition
-		$def = $this->getDefinition();
-		
-		//Create columns list
-		$columns = "t.id id";
-		foreach($def['dataFields'] as $field)
-		{
-			$columns .= ", " . Inflector::underscore($field);
-		}
-		
-		//Update joins
-		if(!is_array($joins)) $joins = array($joins);
-		
-		//Add owner id columns to list
-		foreach($def['owners'] as $column => $table)
-		{
-			$columns .= ", t." . \ATP\Inflector::underscore($column) . "_id";
-		}
-		
-		//Set default order
-		if(is_null($orderBy)) $orderBy = $def['defaultOrder'];
-		
-		//Build sql
-		$sql = "SELECT {$columns} FROM {$def['table']} t";
-		if(!empty($joins)) $sql .= " " . implode(" ", $joins);
-		if(!empty($where)) $sql .= " WHERE " . (is_array($where) ? implode(" AND ", $where) : $where);
-		if(!empty($orderBy)) $sql .= " ORDER BY {$orderBy}";
-		if(!empty($limit)) $sql .= " LIMIT {$limit}";
-		
-		//Fetch the results
-		$results = $this->getAdapter()->query($sql, $data);
-		
-		//Create the returned objects
-		if($arrays)
-		{
-			$rows = $results;
-		}
-		else
-		{
-			$rows = new \ATP\ActiveRecord\ModelList($this->modelType());
-			
-			foreach($results as $row)
-			{
-				$obj = new static();
-				$obj->loadFromArray($row);
-				$rows[] = $obj;
-			}
-		}
-		
-		return $rows;
-	}
-	
-	public function loadFromArray($row)
+	public function loadFromArray($row, $runPostLoadProcessing = true)
 	{
 		foreach($row as $column => $value)
 		{
-			$this->_data[$column] = $this->_postLoadValue($column, $value);
+			$this->_data[$column] = $runPostLoadProcessing ? $this->_postLoadValue($column, $value) : $value;
 		}
 	}
 	
-	public function toJson($maxRecursionDepth = 0)
+	public function getRawData()
 	{
-		return json_encode($this->toArray($maxRecursionDepth));
+		return $this->_data;
 	}
 	
-	public function toArray($maxRecursionDepth = 0, $objectStack = array())
+	public function setFrom($obj)
+	{
+		$data = is_array($obj) ? $obj : $obj->getRawData();
+		foreach($data as $name => $value)
+		{
+			$func = "filter" . Inflector::camelize($name);
+			$this->_data[$name] = method_exists($this, $func) ? $this->$func($value) : $value;
+		}
+		return $this;
+	}
+	
+	public function isAFile($column)
+	{
+		return strpos($column, "_file") !== false;
+	}
+	
+	public function filePath($column)
 	{
 		$def = $this->getDefinition();
-		
-		//Don't render this object if it's been done already
-		$identifier = "{$def['table']}::{$this->identity()}";		
-		if(in_array($identifier, $objectStack)) return "\"*RECURSION*\"";		
-		$objectStack[] = $identifier;
-		
-		$fields = array();
-		
-		//Add standard fields
-		$fields['id'] = $this->id;
-		
-		//Add data fields
-		foreach($def['dataFields'] as $field)
-		{
-			$fieldName = lcfirst($field);
-			$fields[$fieldName] = $this->$fieldName;
-		}		
-		
-		//Add custom fields
-		$this->_toArrayCustom($fields);
-		
-		if($maxRecursionDepth > 0)
-		{
-			//Add owners
-			
-			//Add sub-objects
-			
-			//Add related objects
-			foreach($def['relatedObjects'] as $column => $relation)
-			{
-				$columnFull = Inflector::variablize($column) . "List";
-
-				//Make sure to load related objects if they haven't been
-				if(!isset($this->$columnFull)) $this->$columnFull;
-				
-				$objList = array();
-				foreach($this->$columnFull as $obj)
-				{
-					$objList[$obj->identity()] = $obj->toArray($maxRecursionDepth - 1, $objectStack);
-				}
-				$fields[$columnFull] = $objList;
-			}
-		}
-		
-		return $fields;
+		return "/uploads/{$def['table']}/{$this->id}/{$this->$column->name}";
+	}
+	
+	public function identity()
+	{
+		return $this->id;
 	}
 	
 	public function displayName()
@@ -405,14 +279,123 @@ class ActiveRecord
 		return $this->id;
 	}
 	
-	protected function _toArrayCustom(&$fields)
+	public function ownerFields()
 	{
+		$def = $this->getDefinition();
+		return $def['owners'];
+	}
+	
+	public function childrenFields()
+	{
+		$def = $this->getDefinition();
+		return array_keys($def['children']);		
+	}
+	
+	public function relatedObjectFields()
+	{
+		//TODO
+		return array();
+	}
+	
+	public function dataColumns()
+	{
+		$def = $this->getDefinition();
+		return array_diff(
+			array_keys($def['columns']),
+			array_keys($def['owners']),
+			array('id')
+		);
+	}
+	
+	public function &__get($column)
+	{
+		$def = $this->getDefinition();
+	
+		//Return the column value if it exists
+		$column = Inflector::underscore($column);
+		if(array_key_exists($column, $this->_data)) return $this->_data[$column];
+	
+		//Handler owner object fields
+		$ownerIdField = "{$column}_id";
+		if(array_key_exists($ownerIdField, $this->_data))
+		{
+			//Load the owner object
+			$ownerTable = $def['owners'][$ownerIdField];
+			$ownerClass = self::$_databaseDef['tables'][$ownerTable]['class'];
+			$this->_data[$column] = new $ownerClass();
+			if(!empty($this->_data[$ownerIdField]))
+			{
+				$this->_data[$column]->loadById($this->_data[$ownerIdField]);
+			}
+			return $this->_data[$column];
+		}
+	
+		throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
+	}
+	
+	public function __set($column, $value)
+	{
+		if(!isset($this->_data[$column]))
+		{
+			throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
+		}
+
+		$this->_data[$column] = $value;
+	}
+	
+	public function __call($func, $params)
+	{
+		if(strpos($func, "loadBy") === 0) return $this->_loadBy($func, $params);
+		
+		throw new \ATP\ActiveRecord\Exception("Unknown function {$func} in " . get_class($this));
+	}
+	
+	// -- Internal functions -- //
+	
+	private static function _loadDatabaseDefinition()
+	{
+		$db = self::getAdapter();
+	
+		//Get table columns
+		$dbData = array();
+		$tables = $db->query("SHOW TABLES")->execute();
+		foreach($tables as $tableListRow)
+		{
+			$table = current($tableListRow);
+			$columns = $db->query("DESCRIBE {$table}")->execute();
+			$columnData = array();
+			foreach($columns as $columnListRow)
+			{
+				$columnData[$columnListRow['Field']] = $columnListRow['Type'];
+			}
+			$dbData['tables'][$table]['columns'] = $columnData;
+		}
+		
+		//Get relationships
+		$relations = $db->query("
+			SELECT table_name, column_name, referenced_table_name, referenced_column_name
+			FROM information_schema.key_column_usage
+			WHERE table_schema='skylands' AND referenced_table_schema IS NOT NULL;
+		")->execute();
+		$relationData = array();
+		foreach($relations as $relation)
+		{
+			$relationData[] = $relation;
+			
+			$table = $relation['table_name'];
+			$column = $relation['column_name'];
+			$otherTable = $relation['referenced_table_name'];
+			
+			$dbData['tables'][$table]['owners'][$column] = $otherTable;
+			$dbData['tables'][$otherTable]['children'][$table][] = $column;
+		}
+		self::$_databaseDef['relations'] = $relationData;
+		
+		self::$_databaseDef = $dbData;
 	}
 	
 	private function _postLoadValue($column, $value)
 	{
-		$column = ucfirst(Inflector::camelize($column));
-		
 		if($this->isAFile($column))
 		{
 			$file = new \ATP\ActiveRecord\File();
@@ -420,324 +403,42 @@ class ActiveRecord
 			$value = $file;
 		}
 		
+		$column = ucfirst(Inflector::camelize($column));
 		$func = "postLoad{$column}";
 		return method_exists($this, $func)
 			? $this->$func($value)
 			: $value;
 	}
 	
-	protected function definitionIndex()
+	private function _loadBy($func, $params)
 	{
-		$parts = explode("\\",get_class($this));
-		return end($parts);
-	}
-	
-	public function getDefinition()
-	{
-		return self::$_definitions[$this->definitionIndex()];
-	}
-	
-	public function modelType()
-	{
-		return \ATP\Inflector::underscore(\ATP\Inflector::pluralize($this->definitionIndex()));
-	}
-	
-	public function tableNamespace($namespace)
-	{
-		self::$_definitions[$this->definitionIndex()]['tableNamespace'] = $namespace;
-		return $this;
-	}
-	
-	public function isIdentifiedBy($field)
-	{
-		self::$_definitions[$this->definitionIndex()]['identityField'] = $field;
-		return $this;
-	}
-	
-	public function isOrderedBy($order)
-	{
-		self::$_definitions[$this->definitionIndex()]['defaultOrder'] = $order;
-		return $this;
-	}
-	
-	public function identity()
-	{
-		$def = $this->getDefinition();
-		$field = Inflector::underscore($def['identityField']);
-		return $this->$field;
-	}
-	
-	protected function livesIn($tableName)
-	{
-		$def = &self::$_definitions[$this->definitionIndex()];
-
-		$table = $tableName;
-		$tNamespace = $def['tableNamespace'];
-		if(!empty($tNamespace)) $table = "{$tNamespace}_{$table}";
-
-		$def['table'] = $table;
-		$def['name'] = Inflector::singularize(Inflector::underscore($tableName));
-		return $this;
-	}
-	
-	protected function hasData()
-	{
-		self::$_definitions[$this->definitionIndex()]['dataFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function hasFiles()
-	{
-		self::$_definitions[$this->definitionIndex()]['fileFields'] = func_get_args();
-		return $this;
-	}
-	
-	public function isAFile($column)
-	{
-		return in_array($column, self::$_definitions[$this->definitionIndex()]['fileFields']);
-	}
-	
-	public function filePath($column)
-	{
-		$def = $this->getDefinition();
-	
-		$path = "/uploads/{$def['table']}/{$this->id}/";
-		$path .= $this->$column->name;
-		return $path;
-	}
-	
-	public function dataColumns()
-	{
-		return self::$_definitions[$this->definitionIndex()]['dataFields'];
-	}
-	
-	public function __toString()
-	{
-		return $this->displayName();
-	}
-	
-	public function ownerFields()
-	{
-		$def = $this->getDefinition();
-		
-		$owners = $def['owners'];
-		
-		return $owners;
-	}
-	
-	public function subObjectFields()
-	{
-		$def = $this->getDefinition();
-		return $def['subObjects'];
-	}
-	
-	public function relatedObjectFields()
-	{
-		$def = $this->getDefinition();
-		return $def['relatedObjects'];
-	}
-	
-	public function __call($func, $args)
-	{
-		if(substr($func, 0, 9) == "belongsTo")
-		{
-			$def = substr($func, 9);
-			$parts = explode("As", $def);
-		
-			$table = $parts[0];
-			$column = count($parts) == 1 ? Inflector::singularize($parts[0]) : $parts[1];
-		
-			return $this->_belongsTo($table, $column);
-		}
-		
-		if(substr($func, 0, 7) == "hasMany")
-		{
-			$def = substr($func, 7);
-			$parts = explode("Via", $def);
-			$mappingTable = Inflector::underscore($parts[1]);
-			$parts = explode("As", $parts[0]);
-			
-			$table = $parts[0];
-			$column = count($parts) == 1 ? $parts[0] : $parts[1];
-			
-			if(count($args) > 0)
-			{
-				$columnName = $args[0];
-				$relatedObjectColumnName = $args[1];
-			}
-			else
-			{
-				$columnName = Inflector::singularize($this->modelType());
-				$relatedObjectColumnName = Inflector::underscore(Inflector::singularize($table));
-			}
-			
-			return $this->_isRelatedTo($table, $column, $mappingTable, $columnName, $relatedObjectColumnName);
-		}
-		
-		if(substr($func, 0, 3) == "has")
-		{
-			$def = substr($func, 3);
-			$parts = explode("As", $def);
-			if(count($parts) == 1)
-			{
-				$parts[1] = Inflector::singularize($parts[0]);
-			}
-		
-			$table = $parts[0];
-			$column = count($parts) == 1 ? Inflector::singularize($parts[0]) : $parts[1];
-		
-			return $this->_has($table, $column);
-		}
-		
-		if(substr($func, 0, 13) == "isDisplayedAs")
-		{
-			$column = substr($func, 13);
-			return $this->_displayedAs($column);
-		}
-	}
-	
-	public function __set($name, $value)
-	{
-		//Parse the name of the column
-		$name = ucfirst($name);
-		$nameUnderscore = Inflector::underscore($name);
-		
-		//Process value before insertion
-		$func = "filter{$name}";
-		if(method_exists($this, $func)) $value = $this->$func($value);
-		
-		switch($this->_fieldType($name))
-		{
-			case 'owner':
-				$this->_data[$nameUnderscore] = $value;
-				$this->_data["{$nameUnderscore}_id"] = $value->id;
-				break;
-			case 'subObjects':
-			case 'relatedObjects':
-			case 'data':
-				$this->_data[$nameUnderscore] = $value;
-				break;
-		}
-	}
-	
-	public function __get($name)
-	{
-		//Parse the name of the column
-		$name = ucfirst($name);
-		$nameUnderscore = Inflector::underscore($name);
-	
-		//Lazy load all related objects and related object lists
-		if(!isset($this->_data[$nameUnderscore]))
-		{
-			switch($this->_fieldType($name))
-			{
-				case 'owner':			$this->_loadOwner($name);				break;
-				case 'subObjects':		$this->_loadSubObjects($name);			break;
-				case 'relatedObjects':	$this->_loadRelatedObjects($name);		break;
-				default:				$this->_data[$nameUnderscore] = null;	break;
-			}
-		}
-		
-		$value = $this->_data[$nameUnderscore];
-		
-		$func = "get{$name}";		
-		return method_exists($this, $func) ? $this->$func($value) : $value;
-	}
-	
-	private function _loadOwner($field)
-	{
-		$def = $this->getDefinition();
-		
-		$name = ucfirst($field);
-		$nameUnderscore = Inflector::underscore($field);
-
-		$column = "{$nameUnderscore}_id";
-		
-		$className = $def['namespace'] . "\\" . Inflector::singularize($def['owners'][$name]);
-		
-		$id = isset($this->_data[$column]) ? $this->_data[$column] : null;
-		$this->_data[$nameUnderscore] = new $className($id);
-	}
-	
-	private function _loadSubObjects($field)
-	{
-		$def = $this->getDefinition();
-		
-		$name = ucfirst($field);
-		$nameUnderscore = Inflector::underscore($field);
-
-		$className = $def['namespace'] . "\\" . substr($name, 0, -4);
-		$obj = new $className();
-		$this->_data[$nameUnderscore] = new \ATP\ActiveRecord\ModelList($obj->modelType());
-		foreach($obj->loadMultiple("{$def['name']}_id={$this->id}") as $obj)
-		{
-			$this->_data[$nameUnderscore][$obj->identity()] = $obj;
-		}
-	}
-	
-	private function _loadRelatedObjects($field)
-	{
-		$def = $this->getDefinition();
-
-		$name = ucfirst($field);
-		$nameUnderscore = Inflector::underscore($field);
-
-		$rawName = substr($name, 0, -4);
-		
-		$mappingTable = $def['relatedObjects'][$rawName]['mappingTable'];
-		
-		$otherEntityClass = $def['namespace'] . "\\" . $def['relatedObjects'][$rawName]['class'];
-		$otherEntityField = "{$def['relatedObjects'][$rawName]['relatedObjectColumnName']}_id";
-		
-		$idField = "{$def['relatedObjects'][$rawName]['columnName']}_id";
-		
-		$joins = "left join {$mappingTable} m ON m.{$otherEntityField}=t.id";
-		$where = "m.{$idField}=?";
-		$data = array($this->id);
-		$obj = new $otherEntityClass();
-		$this->_data[$nameUnderscore] = new \ATP\ActiveRecord\ModelList($obj->modelType());
-		foreach($obj->loadMultiple($where, $data, $joins) as $obj)
-		{
-			$this->_data[$nameUnderscore][$obj->identity()] = $obj;
-		}
-	}
-	
-	private function _fieldType($name)
-	{
-		//Get this model's definition
-		$def = $this->getDefinition();
-
-		//Parse the name of the column
-		$name = ucfirst($name);
-		$nameUnderscore = Inflector::underscore($name);
-	
-		//Determin data type
-		if(in_array($name, array_keys($def['owners']))) return 'owner';
-		if(in_array(substr($name, 0, -4), array_keys($def['subObjects'])) && substr($name, -4) == "List") return "subObjects";
-		if(in_array(substr($name, 0, -4), array_keys($def['relatedObjects'])) && substr($name, -4) == "List") return "relatedObjects";
-		return "data";
-	}
-
-	private function _belongsTo($table, $column)
-	{
-		self::$_definitions[$this->definitionIndex()]['owners'][$column] = $table;
-		return $this;
-	}
-	
-	private function _has($table, $column)
-	{
-		self::$_definitions[$this->definitionIndex()]['subObjects'][$column] = $table;
-		return $this;
-	}
-	
-	private function _isRelatedTo($table, $column, $mappingTable, $columnName, $relatedObjectColumnName)
-	{
-		self::$_definitions[$this->definitionIndex()]['relatedObjects'][Inflector::singularize($column)] = array(
-			'class' => Inflector::singularize($table),
-			'mappingTable' => $mappingTable,
-			'columnName' => $columnName,
-			'relatedObjectColumnName' => $relatedObjectColumnName
+		$column = Inflector::underscore(str_replace("loadBy", "", $func));
+		$queryParams = array(
+			'where' => "{$column} = ?",
+			'data' => array($params[0]),
+			'useArrays' => true
 		);
+		
+		$rows = $this->loadMultiple($queryParams);
+		reset($rows);
+		if(count($rows) == 0)
+		{
+			$def = $this->getDefinition();
+			$row = array();
+			foreach(array_keys($def['columns']) as $column)
+			{
+				$row[$column] = null;
+			}
+		}
+		else
+		{
+			//Necessary to get the first row as an array
+			foreach($rows as $row)
+			{
+				break;
+			}
+		}
+		$this->loadFromArray($row);
 		return $this;
 	}
 }

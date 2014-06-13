@@ -23,13 +23,6 @@ class ModelList extends \ArrayObject
 		return new $className();
 	}
 	
-	public function adminColumns()
-	{
-		if(count($this) == 0) return array();
-		$obj = current($this);
-		return $obj->adminColumns();
-	}
-	
 	public function toArray()
 	{
 		$newValues = array();

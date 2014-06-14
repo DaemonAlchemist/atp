@@ -335,7 +335,7 @@ class ActiveRecord
 	
 	public function __set($column, $value)
 	{
-		if(!isset($this->_data[$column]))
+		if(!array_key_exists($column, $this->_data))
 		{
 			throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
 		}
@@ -412,6 +412,8 @@ class ActiveRecord
 	
 	private function _loadBy($func, $params)
 	{
+		$success = true;
+	
 		$column = Inflector::underscore(str_replace("loadBy", "", $func));
 		$queryParams = array(
 			'where' => "{$column} = ?",
@@ -423,6 +425,8 @@ class ActiveRecord
 		reset($rows);
 		if(count($rows) == 0)
 		{
+			$success = false;
+		
 			$def = $this->getDefinition();
 			$row = array();
 			foreach(array_keys($def['columns']) as $column)
@@ -439,6 +443,6 @@ class ActiveRecord
 			}
 		}
 		$this->loadFromArray($row);
-		return $this;
+		return $success;
 	}
 }

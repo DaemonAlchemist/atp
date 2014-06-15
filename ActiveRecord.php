@@ -177,6 +177,11 @@ class ActiveRecord
 			//Add the field to the query
 			if($setField)
 			{
+				if($this->isOwnerField($column) && empty($value))
+				{
+					$value = null;
+				}
+			
 				$columns[] = $column;
 				$values[] = $value;			
 				$placeHolders[] = "?";
@@ -283,6 +288,12 @@ class ActiveRecord
 	{
 		$def = $this->getDefinition();
 		return $def['owners'];
+	}
+	
+	public function isOwnerField($column)
+	{
+		$owners = $this->ownerFields();
+		return array_key_exists($column, $owners);
 	}
 	
 	public function childrenFields()

@@ -357,6 +357,7 @@ class ActiveRecord
 	public function __call($func, $params)
 	{
 		if(strpos($func, "loadBy") === 0) return $this->_loadBy($func, $params);
+		if(strpos($func, "get") === 0 && strpos($func, "By") !== false) return $this->_getChildren($func, $params);
 		
 		throw new \ATP\ActiveRecord\Exception("Unknown function {$func} in " . get_class($this));
 	}
@@ -455,5 +456,24 @@ class ActiveRecord
 		}
 		$this->loadFromArray($row);
 		return $success;
+	}
+	
+	private function _getChildren($func, $params)
+	{
+		$parts = explode("By", $func);
+		
+		if(count($parts) > 2) throw new \ATP\ActiveRecord\Exception("Ambigous children call {$func}");
+		
+		$table = \ATP\Inflector::underscore(substr($parts[0], 3));
+		$field = \ATP\Inflector::underscore($parts[1]) . "_id";
+		$class = self::$_databaseDef['tables'][$table]['class'];
+		
+		$obj = new $class();
+		$children = $obj->loadMultiple(array(
+			'where' => "{$field} = ?",
+			'data' => array($this->id)
+		));
+		
+		return $children;
 	}
 }

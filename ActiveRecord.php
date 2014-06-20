@@ -37,6 +37,7 @@ class ActiveRecord
 		//Set default class name
 		$classNameFull = "\\" . get_class($obj);
 		$classSplit = explode("\\",$classNameFull);
+		$module = $classSplit[1];
 		$class=end($classSplit);
 		$table=\ATP\Inflector::underscore(\ATP\Inflector::pluralize($class));
 		
@@ -46,7 +47,8 @@ class ActiveRecord
 		self::$_classDefs[$classNameFull]['defaultOrder'] = "id ASC";
 
 		//Setup class
-		$obj->setup();
+		$obj->setTableNamespace(strtolower($module));
+		$obj->_setup();
 		
 		//Determine final table name
 		$tableFull = (is_null($obj->getTableNamespace()) ? $table : $obj->getTableNamespace() . "_" . $table);
@@ -62,6 +64,10 @@ class ActiveRecord
 		{
 			self::$_classDefs[$classNameFull][$key] = $data;
 		}
+	}
+	
+	protected function _setup()
+	{
 	}
 	
 	protected function setTableNamespace($ns)

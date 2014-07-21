@@ -6,11 +6,22 @@ class Module
 {
 	protected $_moduleName = "";
 	protected $_moduleBaseDir = "vendor";
+	private $_sm = null;
 
     public function onBootstrap(\Zend\Mvc\MvcEvent $e)
     {
     }
 
+	public function setServiceManager($sm)
+	{
+		$this->_sm =  $sm;
+	}
+	
+	public function getServiceManager()
+	{
+		return $this->_sm;
+	}
+	
     public function getConfig()
     {
         $config = include("{$this->_moduleBaseDir}/config/module.config.php");
@@ -51,4 +62,29 @@ class Module
             ),
         );
     }
+	
+	public function getInstallerOptions()
+	{
+		return array();
+	}
+	
+	public function install($options = array())
+	{
+		//By default, just install database tables
+		$this->installDatabaseEntries();
+	}
+
+	public function installDatabaseEntries()
+	{
+		$db = \ATP\ActiveRecord::getAdapter();
+		foreach($this->getInstallDbQueries() as $sql)
+		{
+			$db->query($sql, \Zend\Db\Adapter\Adapter::QUERY_MODE_EXECUTE);
+		}
+	}
+	
+	protected function getInstallDbQueries()
+	{
+		return array();
+	}
 }

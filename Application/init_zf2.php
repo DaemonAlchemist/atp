@@ -5,7 +5,7 @@ Zend\Loader\AutoloaderFactory::factory(array(
 	'Zend\Loader\StandardAutoloader' => array(
 		'autoregister_zf' => true,
 		'namespaces' => array(
-			'ATP' => 'vendor/ATP',
+			'ATP' => 'vendor/DaemonAlchemist/ATP',
 			'Assetic' => 'vendor/Assetic/src/Assetic',
 			'Imagine' => 'vendor/Imagine/lib/Imagine',
 		)

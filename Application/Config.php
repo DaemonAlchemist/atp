@@ -6,13 +6,23 @@ class Config
 {
 	public static function defaultOptions($appOptions, $env)
 	{
+		$d = dir("./vendor");
+		$modulePaths = array(
+			'./module',
+			'./vendor',
+		);
+		while (false !== ($entry = $d->read()))
+		{
+		   if(is_dir(realpath("vendor/" . $entry)) && !in_array($entry, array(".", "..")))
+		   {
+			$modulePaths[] = "./vendor/{$entry}";
+		   }
+		}
+		$d->close();
+	
 		return array_merge($appOptions, array(
 			'module_listener_options' => array(
-				'module_paths' => array(
-					'./module',
-					'./vendor',
-				),
-
+				'module_paths' => $modulePaths,
 				'config_glob_paths' => array(
 					"config/autoload/{,*.}{global,{$env},local}.php",
 				),

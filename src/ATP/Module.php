@@ -24,7 +24,7 @@ class Module
 	
     public function getConfig()
     {
-        $config = include("{$this->_moduleBaseDir}/config/module.config.php");
+        $config = include("{$this->_moduleBaseDir}/../../config/module.config.php");
 		
 		//Load assets from module's public path
 		if(!isset($config['asset_manager']))
@@ -32,7 +32,7 @@ class Module
 			$config['asset_manager'] = array(
 				'resolver_configs' => array(
 					'paths' => array(
-						"{$this->_moduleBaseDir}/public",
+						"{$this->_moduleBaseDir}/../../public",
 					),
 				),
 			);
@@ -43,7 +43,7 @@ class Module
 		{
 			$config['view_manager'] = array(
 				'template_path_stack' => array(
-					"{$this->_moduleBaseDir}/view",
+					"{$this->_moduleBaseDir}/../../view",
 				)
 			);
 		}
@@ -52,17 +52,6 @@ class Module
 		return $config;
     }
 
-    public function getAutoloaderConfig()
-    {
-        return array(
-            'Zend\Loader\StandardAutoloader' => array(
-                'namespaces' => array(
-                    $this->_moduleName => "{$this->_moduleBaseDir}/src/{$this->_moduleName}",
-                ),
-            ),
-        );
-    }
-	
 	public function getInstallerOptions()
 	{
 		return array();

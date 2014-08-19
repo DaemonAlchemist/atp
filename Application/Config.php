@@ -6,19 +6,31 @@ class Config
 {
 	public static function defaultOptions($appOptions, $env)
 	{
-		$d = dir("./vendor");
 		$modulePaths = array(
 			'./module',
 			'./vendor',
+			'./vendor/*/*',
 		);
-		while (false !== ($entry = $d->read()))
+		
+		$d1 = dir("./vendor");
+		while (false !== ($entry1 = $d1->read()))
 		{
-		   if(is_dir(realpath("vendor/" . $entry)) && !in_array($entry, array(".", "..")))
-		   {
-			$modulePaths[] = "./vendor/{$entry}";
-		   }
+			if(is_dir(realpath("vendor/{$entry1}")) && !in_array($entry1, array(".", "..")))
+			{
+				$modulePaths[] = "./vendor/{$entry1}";	//TODO:  Remove when all modules are composerified
+				$d2 = dir("./vendor/{$entry1}");
+				while (false !== ($entry2 = $d2->read()))
+				{
+					if(is_dir(realpath("vendor/{$entry1}/{$entry2}")) && !in_array($entry2, array(".", "..")))
+					{
+						$modulePaths[] = "./vendor/{$entry1}/{$entry2}";
+					}
+				}
+				$d2->close();
+				unset($d2);
+			}
 		}
-		$d->close();
+		$d1->close();
 	
 		return array_merge($appOptions, array(
 			'module_listener_options' => array(

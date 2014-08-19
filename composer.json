@@ -1,0 +1,14 @@
+{
+    "name": "daemonalchemist/atp",
+    "description": "Helper classes for the ATP framework",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Andrew Wittrock",
+            "email": "andy@wittrock.us"
+        }
+    ],
+    "require": {
+
+    }
+}

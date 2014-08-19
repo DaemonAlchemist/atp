@@ -390,10 +390,11 @@ class ActiveRecord
 		}
 		
 		//Get relationships
+		$schema = $db->getDriver()->getConnection()->getCurrentSchema();
 		$relations = $db->query("
 			SELECT table_name, column_name, referenced_table_name, referenced_column_name
 			FROM information_schema.key_column_usage
-			WHERE table_schema='skylands' AND referenced_table_schema IS NOT NULL;
+			WHERE table_schema='{$schema}' AND referenced_table_schema IS NOT NULL;
 		")->execute();
 		$relationData = array();
 		foreach($relations as $relation)

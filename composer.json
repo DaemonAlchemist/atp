@@ -2,17 +2,17 @@
     "name": "daemonalchemist/atp",
     "description": "Helper classes for the ATP framework",
     "license": "MIT",
-    "autoload": {
-        "psr-0": {
-            "ATP": "src/ATP"
-        }
-    },
     "authors": [
         {
             "name": "Andrew Wittrock",
             "email": "andy@wittrock.us"
         }
     ],
+    "autoload": {
+        "psr-0": {
+            "ATP": "src"
+        }
+    },
     "require": {
 
     }

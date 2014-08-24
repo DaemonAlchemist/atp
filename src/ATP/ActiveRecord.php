@@ -236,6 +236,15 @@ class ActiveRecord
 		}
 	}
 	
+	public function delete()
+	{
+		$def = $this->getDefinition();
+		$db = $this->getAdapter();
+		
+		$sql = "DELETE FROM {$def['table']} WHERE id={$this->id} LIMIT 1";
+		$db->query($sql, array());
+	}
+	
 	public function clear()
 	{
 		$this->_data = array();

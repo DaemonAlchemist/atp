@@ -24,7 +24,13 @@ class Module
 	
     public function getConfig()
     {
-        $config = include("{$this->_moduleBaseDir}/../../config/module.config.php");
+		$files = array("module", "admin", "routes", "layout", "helpers");
+		$config = array();
+        foreach($files as $file)
+		{
+			$fullFile = "{$this->_moduleBaseDir}/../../config/{$file}.config.php";
+			if(file_exists($fullFile)) $config = array_merge($config, include($fullFile));
+		}
 		
 		//Load assets from module's public path
 		if(!isset($config['asset_manager']))

@@ -305,6 +305,12 @@ class ActiveRecord
 		return $def['owners'];
 	}
 	
+	public function ownerTable($column)
+	{
+		$def = $this->getDefinition();
+		return $def['owners'][$column];
+	}
+	
 	public function isOwnerField($column)
 	{
 		$owners = $this->ownerFields();

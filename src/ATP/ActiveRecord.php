@@ -149,6 +149,13 @@ class ActiveRecord
 		{
 			$setField = true;
 			
+			//Check for owner fields
+			if($this->isOwnerField($column))
+			{
+				$ownerName = substr($column, 0, -3);
+				if(isset($this->_data[$ownerName])) $this->$column = $this->_data[$ownerName]->id;
+			}
+			
 			$value = $this->$column;
 			
 			//Run preSave functions
@@ -234,6 +241,12 @@ class ActiveRecord
 			$path .= $data['name'];
 			if(!move_uploaded_file($data['tmp_name'], $path)) die();
 		}
+		
+		$this->postSave();
+	}
+	
+	public function postSave()
+	{
 	}
 	
 	public function delete()
@@ -367,9 +380,14 @@ class ActiveRecord
 	
 	public function __set($column, $value)
 	{
+		$column = \ATP\Inflector::underscore($column);
 		if(!array_key_exists($column, $this->_data))
 		{
-			throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
+			$ownerIdColumn = "{$column}_id";
+			if(!array_key_exists($ownerIdColumn, $this->_data))
+			{
+				throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
+			}
 		}
 
 		$this->_data[$column] = $value;
@@ -484,7 +502,7 @@ class ActiveRecord
 	{
 		$parts = explode("By", $func);
 		
-		if(count($parts) > 2) throw new \ATP\ActiveRecord\Exception("Ambigous children call {$func}");
+		if(count($parts) > 2) throw new \ATP\ActiveRecord\Exception("Ambiguous children call {$func}");
 		
 		$table = \ATP\Inflector::underscore(substr($parts[0], 3));
 		$field = \ATP\Inflector::underscore($parts[1]) . "_id";

@@ -24,7 +24,7 @@ class Module
 	
     public function getConfig()
     {
-		$files = array("module", "admin", "routes", "layout", "helpers");
+		$files = array("module", "admin", "routes", "layout", "helpers", "caching");
 		$config = array();
         foreach($files as $file)
 		{

@@ -147,6 +147,8 @@ class ActiveRecord
 		//Add fields
 		foreach(array_keys($def['columns']) as $column)
 		{
+			if($column == 'id') continue;
+			
 			$setField = true;
 			
 			//Check for owner fields

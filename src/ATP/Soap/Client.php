@@ -67,7 +67,14 @@ class Client
 		$response = curl_exec($ch); 
 		curl_close($ch);
 		
-		//Return the result
-		return $response;
+		//Remove the body tag
+		$response = str_replace(array("<soap:Body>", "</soap:Body>"), "", $response);
+
+		//Convert the xml document to an array
+		$xml = simplexml_load_string($response);
+		$json = json_encode($xml);
+		$data = json_decode($json, true);
+		
+		return $data;
 	}
 }

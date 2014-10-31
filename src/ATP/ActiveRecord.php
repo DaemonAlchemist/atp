@@ -309,6 +309,11 @@ class ActiveRecord
 		return $this->id;
 	}
 	
+	public function __toString()
+	{
+		return $this->displayName();
+	}
+	
 	public function displayName()
 	{
 		return $this->id;

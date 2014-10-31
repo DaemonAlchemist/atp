@@ -197,10 +197,10 @@ class ActiveRecord
 					$value = null;
 				}
 			
-				$columns[] = $column;
+				$columns[] = "`$column`";
 				$values[] = $value;			
 				$placeHolders[] = "?";
-				$updates[] = "{$column}=?";
+				$updates[] = "`{$column}`=?";
 			}
 		}
 		

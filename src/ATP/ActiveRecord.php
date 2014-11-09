@@ -132,6 +132,18 @@ class ActiveRecord
 		return $rows;		
 	}
 	
+	public function getCount($params = array())
+	{
+		$def = $this->getDefinition();
+		
+		$sql = "SELECT count(*) count from {$def['table']}";
+		if(!empty($params['where'])) $sql .= " WHERE " . (is_array($params['where']) ? implode(" AND ", $params['where']) : $params['where']);
+		if(!empty($params['limit'])) $sql .= " LIMIT {$params['limit']}";
+		
+		$results = $this->getAdapter()->query($sql, isset($params['data']) ? $params['data'] : array());
+		return $results->current()->count;
+	}
+	
 	public function save()
 	{
 		$def = $this->getDefinition();

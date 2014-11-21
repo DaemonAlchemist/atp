@@ -36,8 +36,11 @@ class Client
 		$xml .= "<soap:Body>";
 		$xml .= "<{$func} xmlns=\"{$this->_ns}\">";
 		
+		$debug = false;
 		if(isset($params[0]))
 		{
+			$debug = isset($params[0]['__debug']) ? $params[0]['__debug'] : false;
+			unset($params[0]['__debug']);
 			foreach($params[0] as $name => $value)
 			{
 				$xml .= "<{$name}>{$value}</{$name}>";
@@ -48,6 +51,13 @@ class Client
 		$xml .= "</soap:Body>";
 		$xml .= "</soap:Envelope>";
 		
+		if($debug)
+		{
+			header('Content-Type: text/xml');
+			echo $xml;
+			die();
+		}
+		
 		//Set the HTTP headers
 		$headers = array(
 			'Content-Type: text/xml; charset="utf-8"',
@@ -57,7 +67,7 @@ class Client
 
 		//Make the request
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
 		curl_setopt($ch, CURLOPT_URL, $this->_url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 10);

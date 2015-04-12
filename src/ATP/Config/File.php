@@ -26,8 +26,8 @@ class File
 		$this->_fileContents = str_replace("#{$var}#", $val, $this->_fileContents);
 	}
 	
-	public function save()
+	public function save($fileName = null)
 	{
-		file_put_contents($this->_fileName, $this->_fileContents);
+		file_put_contents(is_null($fileName) ? $this->_fileName : $fileName, $this->_fileContents);
 	}
 }

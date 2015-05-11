@@ -33,12 +33,14 @@ class Module
 		}
 		
 		//Load assets from module's public path
-		if(!isset($config['asset_manager']))
+		if(!isset($config['asset_manager'])) $config['asset_manager'] = array();
+		if(!isset($config['asset_manager']['resolver_configs']))
 		{
-			$config['asset_manager'] = array(
-				'resolver_configs' => array(
-					'paths' => array(
-						"{$this->_moduleBaseDir}/../../public",
+			$config['asset_manager']['resolver_configs'] = array(
+				'prioritized_paths' => array(
+					array(
+						"path"		=> "{$this->_moduleBaseDir}/../../public",
+						"priority"	=> isset($config['asset_manager']['priority']) ? $config['asset_manager']['priority'] : 100
 					),
 				),
 			);

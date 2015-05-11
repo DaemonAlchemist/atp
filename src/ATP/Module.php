@@ -65,8 +65,9 @@ class Module
 	
 	public function install($options = array())
 	{
-		//By default, just install database tables
+		//By default, just install database tables and copy files
 		$this->installDatabaseEntries();
+		$this->installFiles();
 	}
 
 	public function installDatabaseEntries()
@@ -78,7 +79,24 @@ class Module
 		}
 	}
 	
+	
 	protected function getInstallDbQueries()
+	{
+		return array();
+	}
+
+	public function installFiles()
+	{
+		foreach($this->getInstallFiles() as $src => $dest)
+		{
+			$src = $this->_moduleBaseDir . "/../../" . $src;
+			$dest = getcwd() . "/" . $dest;
+			mkdir (dirname($dest), 0777, true);
+			copy($src, $dest);
+		}
+	}
+	
+	protected function getInstallFiles()
 	{
 		return array();
 	}

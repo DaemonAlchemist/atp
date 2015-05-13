@@ -93,7 +93,8 @@ class Module
 		{
 			$src = $this->_moduleBaseDir . "/../../" . $src;
 			$dest = getcwd() . "/" . $dest;
-			mkdir (dirname($dest), 0777, true);
+			$dir = dirname($dest);
+			if(!is_dir($dir)) mkdir ($dir, 0777, true);
 			copy($src, $dest);
 		}
 	}

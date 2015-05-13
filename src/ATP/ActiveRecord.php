@@ -46,6 +46,9 @@ class ActiveRecord
 		self::$_classDefs[$classNameFull]['owners'] = array();
 		self::$_classDefs[$classNameFull]['defaultOrder'] = "id ASC";
 
+		//Setup child relations
+		self::$_classDefs[$classNameFull]['relations'] = $obj->_relations();
+		
 		//Setup class
 		$obj->setTableNamespace(strtolower($module));
 		$obj->_setup();
@@ -64,6 +67,11 @@ class ActiveRecord
 		{
 			self::$_classDefs[$classNameFull][$key] = $data;
 		}
+	}
+	
+	protected function _relations()
+	{
+		return array();
 	}
 	
 	protected function _setup()
@@ -106,6 +114,7 @@ class ActiveRecord
 		
 		//Construct query
 		$sql = "SELECT * from {$def['table']}";		
+		if(!empty($params['joins'])) $sql .= " " . implode(" ", $params['joins']);
 		if(!empty($params['where'])) $sql .= " WHERE " . (is_array($params['where']) ? implode(" AND ", $params['where']) : $params['where']);
 		$sql .= " ORDER BY " . (empty($params['orderBy']) ? $def['defaultOrder'] : $params['orderBy']);
 		if(!empty($params['limit'])) $sql .= " LIMIT {$params['limit']}";
@@ -394,6 +403,32 @@ class ActiveRecord
 			return $this->_data[$column];
 		}
 	
+		//Handle related objects
+		if(array_key_exists($column, $def['relations']))
+		{
+			$relation = $def['relations'][$column];
+			$objClass = $relation['class'];
+			$obj = new $objClass();
+			
+			$relationTable = $relation['via'];
+			$joinTableInfo = array_flip(self::$_databaseDef['relations'][$relationTable]);
+			
+			$objDef = $obj->getDefinition();
+			$objTable = $objDef['table'];
+			
+			$thisColumn = $joinTableInfo[$def['table']];
+			$otherColumn = $joinTableInfo[$objTable];
+		
+			$objects = $obj->loadMultiple(array(
+				'where' => "{$relationTable}.{$thisColumn}=?",
+				'joins' => array(
+					"LEFT JOIN {$relationTable} ON {$objTable}.id={$relationTable}.{$otherColumn}"
+				),
+				'data' => array($this->id)
+			));
+			return $objects;
+		}
+	
 		throw new \ATP\ActiveRecord\Exception("Unknown column {$column} in model " . get_class($this));
 	}
 	
@@ -451,16 +486,19 @@ class ActiveRecord
 		$relationData = array();
 		foreach($relations as $relation)
 		{
-			$relationData[] = $relation;
-			
 			$table = $relation['table_name'];
 			$column = $relation['column_name'];
 			$otherTable = $relation['referenced_table_name'];
 			
 			$dbData['tables'][$table]['owners'][$column] = $otherTable;
 			$dbData['tables'][$otherTable]['children'][$table][] = $column;
+
+			$table = $relation['table_name'];
+			unset($relation['table_name']);
+			$relationData[$table][$relation['column_name']] = $relation['referenced_table_name'];
+			
 		}
-		self::$_databaseDef['relations'] = $relationData;
+		$dbData['relations'] = $relationData;
 		
 		self::$_databaseDef = $dbData;
 	}

@@ -47,16 +47,14 @@ class Module
 		}
 
 		//Load view from module's view path
-		if(!isset($config['view_manager']))
+		if(!isset($config['view_manager'])) $config['view_manager'] = array();
+		if(!isset($config['view_manager']['template_path_stack']))
 		{
-			$config['view_manager'] = array(
-				'template_path_stack' => array(
-					"{$this->_moduleBaseDir}/../../view",
-				)
+			$config['view_manager']['template_path_stack'] = array(
+				"{$this->_moduleBaseDir}/../../view",
 			);
 		}
 		
-		//echo "<pre>";print_r($config);die();
 		return $config;
     }
 

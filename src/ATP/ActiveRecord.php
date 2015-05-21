@@ -332,7 +332,7 @@ class ActiveRecord
 	
 	public function __toString()
 	{
-		return $this->displayName();
+		return $this->displayName() . "";
 	}
 	
 	public function displayName()

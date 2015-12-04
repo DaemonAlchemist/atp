@@ -379,7 +379,13 @@ class ActiveRecord
 			array('id')
 		);
 	}
-	
+
+    public function __isset($column)
+    {
+        $column = Inflector::underscore($column);
+        return isset($this->_data[$column]);
+    }
+
 	public function &__get($column)
 	{
 		$def = $this->getDefinition();

@@ -572,10 +572,10 @@ class ActiveRecord
 		$class = self::$_databaseDef['tables'][$table]['class'];
 		
 		$obj = new $class();
-		$children = $obj->loadMultiple(array(
+		$children = $obj->loadMultiple(array_merge([
 			'where' => "{$field} = ?",
 			'data' => array($this->id)
-		));
+		], $params);
 		
 		return $children;
 	}

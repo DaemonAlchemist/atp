@@ -575,7 +575,7 @@ class ActiveRecord
 		$children = $obj->loadMultiple(array_merge([
 			'where' => "{$field} = ?",
 			'data' => array($this->id)
-		], $params));
+		], $params[0]));
 		
 		return $children;
 	}

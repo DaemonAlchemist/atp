@@ -563,6 +563,9 @@ class ActiveRecord
 	
 	private function _getChildren($func, $params)
 	{
+//        if($func == 'getAtpcomicArcsByParentArc') {
+//            echo "<pre>";print_r($params);die();
+//        }
 		$parts = explode("By", $func);
 		
 		if(count($parts) > 2) throw new \ATP\ActiveRecord\Exception("Ambiguous children call {$func}");
@@ -575,7 +578,7 @@ class ActiveRecord
 		$children = $obj->loadMultiple(array_merge([
 			'where' => "{$field} = ?",
 			'data' => array($this->id)
-		], $params[0]));
+		], isset($params[0]) ? $params[0] : []));
 		
 		return $children;
 	}
